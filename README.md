@@ -1,61 +1,95 @@
-# Findy – Israeli Tech Job Search
+# Findy
 
-Minimal job search app: scrape tech jobs (Greenhouse, Lever, Workday, Comeet), filter by Israel/seniority/title, optional resume matching. One Flask backend, static frontend.
+![Findy](assets/logo.png)
 
-## Structure
+Findy is a job discovery application that aggregates tech job postings from multiple company job boards and helps candidates quickly find relevant opportunities in Israel.
+
+The system collects jobs from common ATS platforms (Greenhouse, Lever, Workday, Comeet), stores them locally, and allows filtering by title and seniority. Users can optionally upload a resume to rank jobs based on relevance.
+
+## Features
+
+- **Aggregates job postings from multiple ATS platforms**
+  - Greenhouse
+  - Lever
+  - Workday
+  - Comeet
+
+- **Job filtering**
+  - Title filtering
+  - Seniority detection
+  - Israel-based opportunities
+
+- **Resume parsing**
+  - Upload a PDF resume
+  - Extract text from the document
+  - Rank jobs based on resume relevance
+
+## Architecture
 
 ```
-jobmatch-bot/
-├── backend/
-│   ├── app.py            # Flask app (routes, serve frontend)
-│   ├── config.py         # Configuration constants
-│   ├── database.py       # DB connection and schema
-│   ├── jobs_store.py     # Job persistence and querying
-│   ├── resume_parser.py  # PDF text extraction
-│   ├── seniority.py      # Seniority detection
-│   ├── job_scraper.py    # Entry: scrape_all_jobs()
-│   ├── job_matcher.py    # filter_jobs(), rank_jobs()
-│   └── scrapers/         # Greenhouse, Lever, Workday, Comeet
-├── frontend/
+Findy
+│
+├── backend
+│   ├── app.py
+│   ├── config.py
+│   ├── database.py
+│   ├── jobs_store.py
+│   ├── job_scraper.py
+│   ├── job_matcher.py
+│   ├── resume_parser.py
+│   ├── seniority.py
+│   └── scrapers
+│
+├── frontend
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
-├── data/                 # jobs.db (created at runtime)
-├── requirements.txt
-├── .env.example
+│
+├── data
+│   └── jobs.db
+│
 ├── run.py
+├── requirements.txt
 └── README.md
 ```
 
-## Run
+The backend handles job scraping, filtering, and ranking logic, while the frontend provides the user interface for searching jobs and uploading resumes.
+
+## Tech Stack
+
+| Layer | Technologies |
+|-------|--------------|
+| **Backend** | Python, Flask, SQLite |
+| **Resume parsing** | pdfplumber |
+| **Frontend** | HTML, JavaScript, CSS |
+
+## Running the Project
+
+**Install dependencies:**
 
 ```bash
-# From project root
 pip install -r requirements.txt
+```
+
+**Run the application:**
+
+```bash
 python run.py
 ```
 
-Open **http://localhost:5000**. Optional: upload a PDF resume, set title/seniority, then Search. Use `/refresh` or `/api/jobs/refresh` to rescrape and update the DB.
+**Open in browser:** [http://localhost:5000](http://localhost:5000)
 
-## API
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Main UI |
-| `/api/health` | GET | Health check |
-| `/api/resume/upload` | POST | Upload PDF, get extracted text |
-| `/api/jobs/search` | GET/POST | Search (scrape + filter + optional rank by resume) |
-| `/api/jobs/stats` | GET | Job count (last 7 days) |
-| `/api/jobs/refresh` | GET/POST | Scrape all sources and upsert to DB |
+| `/` | GET | Web interface |
+| `/api/health` | GET | Service health check |
+| `/api/resume/upload` | POST | Upload resume and extract text |
+| `/api/jobs/search` | GET / POST | Search jobs |
+| `/api/jobs/stats` | GET | Job statistics |
+| `/api/jobs/refresh` | GET / POST | Refresh job database |
 
-## Config
+## Author
 
-Edit `backend/config.py`: `GREENHOUSE_TOKENS`, `LEVER_SLUGS`, `WORKDAY_BOARDS`, `COMEET_*`, `DEFAULT_DAYS_BACK`, `USE_EMBEDDING_MATCHER`.
-
-## Removed in refactor
-
-- **backend/app** (FastAPI)
-- **backend/flask** (legacy Flask; logic moved to backend/app + config + database + jobs_store + resume_parser + seniority + job_matcher + scrapers)
-- **backend/core**, **backend/job**, **backend/resume**, **backend/seniority**, **storage** (split into config, database, jobs_store, resume_parser, seniority)
-- **scripts/** (manual scan scripts)
-- **Next.js frontend** (replaced by static HTML/JS/CSS)
+**Noy Nayler**
