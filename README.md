@@ -1,6 +1,6 @@
 # Findy
 
-![Findy](assets/logo.png)
+![Findy](assets/findy-logo.png)
 
 Findy is a job discovery application that aggregates tech job postings from multiple company job boards and helps candidates quickly find relevant opportunities in Israel.
 
@@ -77,7 +77,6 @@ pip install -r requirements.txt
 python run.py
 ```
 
-**Open in browser:** [http://localhost:5000](http://localhost:5000)
 
 ## API Endpoints
 
