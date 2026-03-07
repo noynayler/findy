@@ -1,4 +1,4 @@
-# Findy
+
 
 ![Findy](assets/findy-logo.png)
 
@@ -89,6 +89,3 @@ python run.py
 | `/api/jobs/stats` | GET | Job statistics |
 | `/api/jobs/refresh` | GET / POST | Refresh job database |
 
-## Author
-
-**Noy Nayler**
