@@ -14,21 +14,30 @@ spec:
     spec:
       containers:
         - name: findy
-          image: noya39/findy:v1
+          image: noya39/findy:v2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          env:
+            - name: FLASK_DEBUG
+              value: "0"
 
           readinessProbe:
             httpGet:
               path: /api/health
               port: 5000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 15
             periodSeconds: 5
 
           livenessProbe:
             httpGet:
               path: /api/health
               port: 5000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 20
             periodSeconds: 10
+      volumes:
+        - name: data
+          emptyDir: {}

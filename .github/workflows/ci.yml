@@ -1,0 +1,40 @@
+# CI: validate on every push and every pull request.
+# Does not push images or deploy.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        env:
+          PYTHONPATH: .
+        run: pytest
+
+      - name: Lint (optional)
+        run: |
+          pip install ruff
+          ruff check backend/ --output-format=concise
+        continue-on-error: true
+
+      - name: Build Docker image (validation only)
+        run: docker build -t findy-ci:test .

@@ -4,7 +4,9 @@ metadata:
   name: findy
 spec:
   type: NodePort
-  port: 5000
-  targetPort: 5000
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 31234
   selector:
     app: findy

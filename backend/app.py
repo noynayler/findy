@@ -187,5 +187,7 @@ def refresh_jobs():
 
 
 if __name__ == "__main__":
+    import os
+    debug = os.environ.get("FLASK_DEBUG", "true").lower() in ("1", "true", "yes")
     print("Server: http://localhost:5000")
-    app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
+    app.run(debug=debug, host="0.0.0.0", port=5000, threaded=True)

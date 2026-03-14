@@ -89,3 +89,50 @@ python run.py
 | `/api/jobs/stats` | GET | Job statistics |
 | `/api/jobs/refresh` | GET / POST | Refresh job database |
 
+
+## CI/CD
+
+### CI (`.github/workflows/ci.yml`)
+
+- **Triggers:** Every push and every pull request (all branches).
+- **Steps:** Checkout → install dependencies → run pytest → optional Ruff lint → build Docker image for validation only.
+- **Does not:** Push images or deploy.
+
+Run tests locally:
+
+```bash
+pip install -r requirements.txt pytest
+PYTHONPATH=. pytest
+```
+
+### CD (`.github/workflows/cd.yml`)
+
+- **Triggers:** Push to `main`, or push of a tag matching `v*` (e.g. `v1.0.0`).
+- **Concurrency:** One deployment at a time (no overlapping deploys).
+
+**On push to main:**
+
+- Build and push: `ghcr.io/<owner>/findy:main`, `ghcr.io/<owner>/findy:latest`.
+- Deploy: `kubectl apply -f k8s/` → `kubectl set image deployment/findy findy=ghcr.io/<owner>/findy:main` → `kubectl rollout status deployment/findy`.
+
+**On tag push (e.g. `v1.0.0`):**
+
+- Build and push: `ghcr.io/<owner>/findy:v1.0.0`, `ghcr.io/<owner>/findy:latest`.
+- Deploy: same steps, with image `ghcr.io/<owner>/findy:v1.0.0`.
+
+### Creating a release
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+CD builds the image, pushes `v1.0.0` and `latest` to GHCR, and deploys to Kubernetes using that image.
+
+### Secrets
+
+- **GHCR:** Uses `GITHUB_TOKEN`; no extra secret.
+- **Kubernetes:** Add repository secret `KUBE_CONFIG_DATA` = base64-encoded kubeconfig.  
+  Linux/macOS: `cat ~/.kube/config | base64 -w0`.  
+  Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.kube\config"))`.  
+  Without it, the deploy step fails; build-and-push still succeeds.  
