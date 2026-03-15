@@ -128,11 +128,3 @@ git push origin v1.0.0
 ```
 
 CD builds the image, pushes `v1.0.0` and `latest` to GHCR, and deploys to Kubernetes using that image.
-
-### Secrets
-
-- **GHCR:** Uses `GITHUB_TOKEN`; no extra secret.
-- **Kubernetes:** Add repository secret `KUBE_CONFIG_DATA` = base64-encoded kubeconfig.  
-  Linux/macOS: `cat ~/.kube/config | base64 -w0`.  
-  Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.kube\config"))`.  
-  Without it, the deploy step fails; build-and-push still succeeds.  
