@@ -25,30 +25,33 @@ The system collects jobs from common ATS platforms (Greenhouse, Lever, Workday, 
   - Rank jobs based on resume relevance
 
 ```mermaid
-graph LR
-    %% Entities with Icons
-    User((fa:fa-user User))
-    DB[(fa:fa-database Supabase)]
-    Web[[fa:fa-globe Web Scraping]]
-    AI[[fa:fa-robot Gemini AI]]
+flowchart LR
+    %% Nodes definition with Emojis
+    User("👤 User")
+    DB("🗄️ PostgreSQL")
+    Web("🌐 Web Scraping")
+    AI("🤖 Gemini AI")
+    Logic{"❓\n Cache"}
 
-    %% Flow
-    User -->|1. Upload CV| DB
-    User -->|2. Search Jobs| Web
-    Web -->|Cache Results| DB
+    %% Flow logic
+    User ==>|Upload CV| DB
+    User ==>|Search Jobs| Web
+    Web -.->|Cache| DB
     
-    User -->|3. Analyze Match| Logic{Cache?}
+    User ==>|Analyze Match| Logic
+    
     Logic -- No --> AI
-    AI -->|4. Store Result| DB
+    AI -.->|Store Result| DB
     Logic -- Yes --> DB
+    
+    DB -.->|Display Results| User
 
-    DB -.->|5. Display Results| User
-
-    %% Styling
-    style DB fill:#3ecf8e,stroke:#333,stroke-width:2px,color:#fff
-    style AI fill:#4285f4,stroke:#333,color:#fff
-    style Web fill:#f96,stroke:#333
-    style User fill:#dfd,stroke:#333
+    %% Professional Styling: Minimalist
+    style User fill:none,stroke:none
+    style DB fill:none,stroke:none,color:#336791,font-weight:bold
+    style Web fill:none,stroke:none,color:#f96
+    style AI fill:none,stroke:none,color:#4285f4
+    style Logic fill:#f8f9fa,stroke:#333,stroke-width:1px
 ```
 
 ## Architecture
