@@ -24,6 +24,33 @@ The system collects jobs from common ATS platforms (Greenhouse, Lever, Workday, 
   - Extract text from the document
   - Rank jobs based on resume relevance
 
+```mermaid
+graph LR
+    %% Entities with Icons
+    User((fa:fa-user User))
+    DB[(fa:fa-database Supabase)]
+    Web[[fa:fa-globe Web Scraping]]
+    AI[[fa:fa-robot Gemini AI]]
+
+    %% Flow
+    User -->|1. Upload CV| DB
+    User -->|2. Search Jobs| Web
+    Web -->|Cache Results| DB
+    
+    User -->|3. Analyze Match| Logic{Cache?}
+    Logic -- No --> AI
+    AI -->|4. Store Result| DB
+    Logic -- Yes --> DB
+
+    DB -.->|5. Display Results| User
+
+    %% Styling
+    style DB fill:#3ecf8e,stroke:#333,stroke-width:2px,color:#fff
+    style AI fill:#4285f4,stroke:#333,color:#fff
+    style Web fill:#f96,stroke:#333
+    style User fill:#dfd,stroke:#333
+```
+
 ## Architecture
 
 ```
