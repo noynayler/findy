@@ -296,16 +296,18 @@ export const HomePage: FC = () => {
           {errorMessage}
         </div>
 
-        <JobList
-          jobs={jobs}
-          resumeText={candidate.resumeText}
-          resumeId={candidate.resumeId}
-          titleFilter={lastTitleFilter}
-          seniorityFilter={lastSeniorityFilter}
-          totalCount={totalCount}
-          filtered={filtered}
-          showTotalJobsSection={showTotalJobsSection}
-        />
+        {!loading ? (
+          <JobList
+            jobs={jobs}
+            resumeText={candidate.resumeText}
+            resumeId={candidate.resumeId}
+            titleFilter={lastTitleFilter}
+            seniorityFilter={lastSeniorityFilter}
+            totalCount={totalCount}
+            filtered={filtered}
+            showTotalJobsSection={showTotalJobsSection}
+          />
+        ) : null}
       </main>
     </>
   );

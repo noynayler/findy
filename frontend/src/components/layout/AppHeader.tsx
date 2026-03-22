@@ -42,7 +42,7 @@ export const AppHeader: FC = () => {
             alt="Findy — AI-Powered Career Matcher"
             width={320}
             height={82}
-            className="h-12 w-auto max-w-[min(100%,340px)] object-contain object-left sm:h-16"
+            className="h-16 w-auto max-w-[min(100%,420px)] object-contain object-left sm:h-20"
             decoding="async"
           />
         </Link>

@@ -80,10 +80,7 @@ export const JobList: FC<JobListProps> = ({
             : "hidden"
         }
       >
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-500">
-          Pool size
-        </h2>
-        <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+        <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
           {totalCount ?? 0}{" "}
           <span className="text-base font-normal text-slate-500">jobs</span>
         </p>
