@@ -4,7 +4,7 @@
 
 # 🚀 AI-Powered Career Matcher
 
-**[Live Demo 🌐](YOUR_RAILWAY_URL_HERE)**
+**[Live Demo 🌐](https://findy-7x1b.onrender.com/)**
 
 Full-stack app that aggregates **Israel-focused tech roles** from multiple ATS sources, scores **CV ↔ job fit** with **Gemini**, and persists **analyzed matches** in **PostgreSQL** (e.g. `job_match_analyses` by CV hash + job URL). **Job search** reads **`public.jobs` in Supabase** (no live scrape on each search). Listings are filled by scraping + upsert (**`run_daily_scrape.py`** / Render cron in [`render.yaml`](render.yaml), or **`POST /api/jobs/refresh`** for manual HTTP refresh) — schedule a **daily job** (see below) so `public.jobs` stays current.
 
