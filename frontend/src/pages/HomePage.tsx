@@ -253,11 +253,10 @@ export const HomePage: FC = () => {
       <div className="border-b border-slate-200/80 bg-white">
         <div className="mx-auto max-w-3xl px-4 pb-10 pt-8 text-center sm:pb-12 sm:pt-10">
           <h1 className="text-balance text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl sm:leading-tight">
-            Find your best job match — instantly with AI
+            Know your match before you apply
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-            Search Israel tech roles from the last week, filter by role and seniority, upload your CV,
-            and get a tailored fit score with actionable tips — powered by Gemini.
+            AI-powered analysis of Israel tech jobs with personalized CV insights and fit scoring.
           </p>
         </div>
       </div>
