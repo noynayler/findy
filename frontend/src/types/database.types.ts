@@ -105,6 +105,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      job_match_analyses: {
+        Row: {
+          id: string;
+          resume_id: string | null;
+          cv_content_hash: string;
+          job_url: string;
+          job_snapshot: Json;
+          score: number;
+          ai_reason: string;
+          tips: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          resume_id?: string | null;
+          cv_content_hash: string;
+          job_url: string;
+          job_snapshot?: Json;
+          score: number;
+          ai_reason: string;
+          tips?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          resume_id?: string | null;
+          cv_content_hash?: string;
+          job_url?: string;
+          job_snapshot?: Json;
+          score?: number;
+          ai_reason?: string;
+          tips?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

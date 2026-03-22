@@ -108,23 +108,23 @@ export const ResumeSection: FC<ResumeSectionProps> = ({
 
   const rootClassName = useMemo((): string => {
     const base =
-      "relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2";
+      "relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2";
     if (isUploading) {
-      return `${base} cursor-wait border-slate-200 bg-slate-100/80 opacity-80`;
+      return `${base} cursor-wait border-slate-200 bg-slate-100/90 opacity-90`;
     }
     if (isDragReject) {
-      return `${base} border-red-400 bg-red-50/90 ring-2 ring-red-200`;
+      return `${base} border-red-300 bg-red-50/90 ring-2 ring-red-100`;
     }
     if (isDragActive) {
-      return `${base} scale-[1.01] border-solid border-indigo-500 bg-indigo-50/90 shadow-md ring-2 ring-indigo-300`;
+      return `${base} scale-[1.01] border-solid border-slate-400 bg-white shadow-card-hover ring-2 ring-slate-900/10`;
     }
-    return `${base} border-slate-300 bg-slate-50/50 hover:border-indigo-400 hover:bg-indigo-50/40`;
+    return `${base} border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50/80`;
   }, [isDragActive, isDragReject, isUploading]);
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-semibold text-slate-800">
-        Resume / CV <span className="font-normal text-slate-500">(optional)</span>
+      <h2 className="mb-3 text-sm font-medium text-slate-900">
+        Resume <span className="font-normal text-slate-500">(optional)</span>
       </h2>
 
       <div {...getRootProps()} className={rootClassName}>
@@ -134,14 +134,14 @@ export const ResumeSection: FC<ResumeSectionProps> = ({
             isDragReject
               ? "text-red-500"
               : isDragActive
-                ? "text-indigo-600"
-                : "text-indigo-500"
+                ? "text-slate-700"
+                : "text-slate-500"
           }`}
         />
         <div>
           <p className="text-sm font-medium text-slate-800">
             Drag &amp; drop your CV here,{" "}
-            <span className="font-semibold text-indigo-600">
+            <span className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2">
               or click to browse
             </span>
           </p>

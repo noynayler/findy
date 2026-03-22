@@ -1,5 +1,5 @@
 /**
- * Supabase / PostgreSQL persistence (resumes, jobs cache, match_history).
+ * Supabase / PostgreSQL persistence (resumes, optional jobs cache, match analyses).
  */
 import type { AiJobMatchAnalysis, Job } from "../types";
 import type { Database, Json } from "../types/database.types";
@@ -15,6 +15,32 @@ function chunkArray<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(i, i + size));
   }
   return chunks;
+}
+
+/** SHA-256 hex of UTF-8 resume text (stable cache key for CV content). */
+export async function sha256HexUtf8(text: string): Promise<string> {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function jobSnapshotJson(
+  snap: Pick<Job, "title" | "company" | "location" | "source" | "description" | "url"> | null,
+): Json {
+  if (!snap) {
+    return {} as Json;
+  }
+  const desc = snap.description ?? "";
+  return {
+    title: snap.title ?? "",
+    company: snap.company ?? "",
+    location: snap.location ?? "",
+    source: snap.source ?? "",
+    url: snap.url ?? "",
+    description: desc.length > 8000 ? desc.slice(0, 8000) : desc,
+  } as Json;
 }
 
 function tipsFromJsonColumn(raw: Json | null | undefined): [string, string, string] {
@@ -69,8 +95,8 @@ export async function insertResumeRecord(
 }
 
 /**
- * Upsert jobs from search results (Flask scraper or external APIs such as JSearch).
- * Deduplicates by url; returns map url to Supabase job id.
+ * Upsert jobs from search results so the UI gets `supabase_job_id` for legacy match_history.
+ * Idempotent on `url` (same rows as Flask refresh); safe to call after each DB-backed search.
  */
 export async function upsertJobsCache(jobs: Job[]): Promise<Record<string, string>> {
   const urlToId: Record<string, string> = {};
@@ -116,6 +142,93 @@ export async function upsertJobsCache(jobs: Job[]): Promise<Record<string, strin
     console.warn("[dbService] upsert jobs exception:", e);
   }
   return urlToId;
+}
+
+/** Read cached analysis by CV content hash + canonical job URL. */
+export async function fetchJobMatchAnalysisByCvHashAndUrl(
+  cvContentHash: string,
+  jobUrl: string,
+): Promise<AiJobMatchAnalysis | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("job_match_analyses")
+      .select("score, ai_reason, tips")
+      .eq("cv_content_hash", cvContentHash)
+      .eq("job_url", jobUrl)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[dbService] fetch job_match_analyses:", error.message);
+      return null;
+    }
+    if (!data) {
+      return null;
+    }
+    return {
+      score: data.score,
+      reason: data.ai_reason,
+      tips: tipsFromJsonColumn(data.tips),
+    };
+  } catch (e) {
+    console.warn("[dbService] fetch job_match_analyses exception:", e);
+    return null;
+  }
+}
+
+export interface UpsertJobMatchAnalysisInput {
+  cvContentHash: string;
+  jobUrl: string;
+  resumeId: string | null;
+  jobSnapshot: Pick<Job, "title" | "company" | "location" | "source" | "description" | "url"> | null;
+  score: number;
+  aiReason: string;
+  tips: [string, string, string];
+}
+
+/** Upsert row in job_match_analyses (unique cv_content_hash + job_url). */
+export async function upsertJobMatchAnalysisRecord(input: UpsertJobMatchAnalysisInput): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    return false;
+  }
+  const {
+    cvContentHash,
+    jobUrl,
+    resumeId,
+    jobSnapshot,
+    score,
+    aiReason,
+    tips,
+  } = input;
+  try {
+    const supabase = getSupabaseClient();
+    const safeScore = Math.round(Math.min(100, Math.max(0, score)));
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("job_match_analyses").upsert(
+      {
+        cv_content_hash: cvContentHash,
+        job_url: jobUrl,
+        resume_id: resumeId,
+        job_snapshot: jobSnapshotJson(jobSnapshot),
+        score: safeScore,
+        ai_reason: aiReason,
+        tips: tipsToJson(tips),
+        updated_at: now,
+      },
+      { onConflict: "cv_content_hash,job_url" },
+    );
+    if (error) {
+      console.warn("[dbService] upsert job_match_analyses:", error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn("[dbService] upsert job_match_analyses exception:", e);
+    return false;
+  }
 }
 
 /** Read cached Gemini result for resume + job pair. */

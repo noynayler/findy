@@ -3,13 +3,13 @@
 
 **[Live Demo 🌐](YOUR_RAILWAY_URL_HERE)**
 
-Full-stack app that aggregates **Israel-focused tech roles** from multiple ATS sources, normalizes and caches them in **PostgreSQL**, and scores **CV ↔ job fit** with **Gemini**—with a **read-through cache** so repeat analyses avoid redundant LLM calls.
+Full-stack app that aggregates **Israel-focused tech roles** from multiple ATS sources, scores **CV ↔ job fit** with **Gemini**, and persists **analyzed matches** in **PostgreSQL** (e.g. `job_match_analyses` by CV hash + job URL). **Job search** reads **`public.jobs` in Supabase** (no live scrape on each search). Listings are filled by **`POST /api/jobs/refresh`** — run it manually once, then schedule a **daily cron** (see below) to rescrape and upsert.
 
 ## Screenshot
 
 Job board with **AI match insight**, score, and actions (**Analyze Match**, **Adjust My CV**, **Apply**):
 
-![Findy UI — job cards with AI match insight](assets/ui-screenshot.png)
+![Findy UI — job cards with AI match insight](assets/screenshot.png)
 
 ## Tech Stack
 
@@ -43,23 +43,45 @@ Job board with **AI match insight**, score, and actions (**Analyze Match**, **Ad
 flowchart LR
     User("👤 User")
     DB[("🗄️ PostgreSQL")]
-    Web["🌐 Web Scraping"]
+    Cron["⏰ Daily cron\nPOST refresh"]
+    Scrape["🌐 ATS scrape"]
     AI["🤖 Gemini"]
     Logic{{"❓\n Cache"}}
 
     User -->|Upload CV| DB
-    User -->|Search jobs| Web
-    Web -->|Upsert by URL| DB
+    Cron --> Scrape
+    Scrape -->|upsert jobs| DB
+    User -->|Search jobs| DB
+    DB -->|filter rank| User
     User -->|Analyze match| Logic
     Logic -->|Miss| AI
     AI -->|Persist analysis| DB
     Logic -->|Hit| DB
-    DB -.->|UI| User
 
     style DB fill:#336791,color:#fff
     style AI fill:#4285f4,color:#fff
-    style Web fill:#f96,color:#fff
+    style Scrape fill:#f96,color:#fff
 ```
+
+### Database and job data
+
+- Apply `postgresql/schema.sql` (or incremental files under `postgresql/migrations/`) in the Supabase SQL editor.
+- **`public.jobs`**: populated by the backend **`POST /api/jobs/refresh`** (scrape + upsert). **Search** only reads from here via Flask; if the table is empty, search returns no listings until refresh succeeds.
+- **`job_match_analyses`**: Gemini results keyed by **`cv_content_hash` + `job_url`**, optional `resume_id`, **`job_snapshot`**. See migration `004_job_match_analyses.sql`.
+- Legacy **`match_history`** (resume UUID + `jobs.id`) is still used when **`supabase_job_id`** is present on a card.
+
+### Daily scrape (cron)
+
+Schedule an HTTP call to refresh listings (adjust host and secret):
+
+```bash
+# Example: 06:00 UTC daily; requires JOBS_REFRESH_SECRET in .env when set on the server
+0 6 * * * curl -fsS -X POST "https://your-host/api/jobs/refresh" -H "Authorization: Bearer $JOBS_REFRESH_SECRET"
+```
+
+If **`JOBS_REFRESH_SECRET`** is **unset**, refresh is open (fine for local dev). If **set**, requests must send the same value as **`Authorization: Bearer <secret>`** or **`?token=<secret>`**.
+
+**Local:** `curl -X POST http://localhost:5000/api/jobs/refresh`
 
 ## CI/CD
 

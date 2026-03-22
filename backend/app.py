@@ -2,6 +2,7 @@
 Flask app: job search, resume upload, refresh. Serves frontend from frontend/.
 """
 
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -160,16 +161,13 @@ def search_jobs():
         if resume_text is not None:
             resume_text = (resume_text or "").strip() or None
 
-        print(f"Search: scraping (last {days} days)...")
-        try:
-            scraped = scrape_all_jobs(days=days, max_comeet_companies=config.COMEET_MAX_BOARDS_FULL_SCAN, skip_comeet=False)
-            jobs_store.upsert_jobs(scraped)
-            print(f"Search: scraped {len(scraped)} jobs")
-        except Exception as err:
-            print(f"Search: scrape failed ({err}), using existing DB")
-            traceback.print_exc()
-
         all_jobs = jobs_store.query_jobs(days=days, israel_only=True)
+        print(f"Search: loaded {len(all_jobs)} jobs from DB (days={days})")
+        if not all_jobs:
+            print(
+                "Search: no rows in public.jobs — run POST /api/jobs/refresh once "
+                "or schedule a daily cron to populate listings.",
+            )
         basic_filtered = filter_jobs(jobs=all_jobs, days=days, seniority=None, title_keyword=None, debug=True)
         total_count = len(basic_filtered)
         filtered_jobs = filter_jobs(jobs=all_jobs, days=days, seniority=seniority, title_keyword=title_keyword, debug=True) if (title_keyword or seniority) else basic_filtered
@@ -218,9 +216,27 @@ def get_stats():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _refresh_authorized() -> bool:
+    """If JOBS_REFRESH_SECRET is set, require Bearer token or ?token= query param."""
+    secret = (os.environ.get("JOBS_REFRESH_SECRET") or "").strip()
+    if not secret:
+        return True
+    auth = (request.headers.get("Authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        token = auth[7:].strip()
+        if token == secret:
+            return True
+    q_token = (request.args.get("token") or "").strip()
+    if q_token == secret:
+        return True
+    return False
+
+
 @app.route("/refresh", methods=["GET", "POST"])
 @app.route("/api/jobs/refresh", methods=["GET", "POST"])
 def refresh_jobs():
+    if not _refresh_authorized():
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
     try:
         scraped = scrape_all_jobs(days=config.DEFAULT_DAYS_BACK, max_comeet_companies=config.COMEET_MAX_BOARDS_FULL_SCAN, skip_comeet=False)
         jobs_store.upsert_jobs(scraped)
@@ -233,8 +249,6 @@ def refresh_jobs():
 
 
 if __name__ == "__main__":
-    import os
-
     debug = os.environ.get("FLASK_DEBUG", "true").lower() in ("1", "true", "yes")
     port = int(os.environ.get("PORT", "5000"))
     print(f"Server: http://0.0.0.0:{port} (debug={debug})")

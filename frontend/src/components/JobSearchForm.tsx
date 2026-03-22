@@ -1,5 +1,6 @@
 import { type ChangeEvent, type FC, type FormEvent } from "react";
 import type { SeniorityValue } from "../types";
+import { Button } from "./ui/Button";
 
 export interface JobSearchFormProps {
   title: string;
@@ -21,14 +22,17 @@ export const JobSearchForm: FC<JobSearchFormProps> = ({
     onSearch();
   };
 
+  const inputClass =
+    "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10";
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="space-y-5 rounded-xl border border-slate-200/90 bg-slate-50/60 p-5 sm:p-6"
     >
       <div>
-        <label htmlFor="title" className="mb-2 block text-sm font-semibold text-slate-700">
-          Job Title (optional)
+        <label htmlFor="title" className="mb-1.5 block text-sm font-medium text-slate-700">
+          Job title <span className="font-normal text-slate-400">(optional)</span>
         </label>
         <input
           type="text"
@@ -36,23 +40,23 @@ export const JobSearchForm: FC<JobSearchFormProps> = ({
           name="title"
           value={title}
           onChange={onTitleChange}
-          placeholder="e.g., devops, backend, frontend"
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          placeholder="e.g. DevOps, backend, frontend"
+          className={inputClass}
         />
       </div>
       <div>
         <label
           htmlFor="seniority"
-          className="mb-2 block text-sm font-semibold text-slate-700"
+          className="mb-1.5 block text-sm font-medium text-slate-700"
         >
-          Seniority Level
+          Seniority
         </label>
         <select
           id="seniority"
           name="seniority"
           value={seniority}
           onChange={onSeniorityChange}
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          className={`${inputClass} cursor-pointer`}
         >
           <option value="">Any</option>
           <option value="intern">Intern</option>
@@ -64,12 +68,9 @@ export const JobSearchForm: FC<JobSearchFormProps> = ({
           <option value="manager">Manager</option>
         </select>
       </div>
-      <button
-        type="submit"
-        className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-3 text-sm font-semibold text-white shadow-md transition hover:from-indigo-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto sm:px-8"
-      >
-        Search Jobs
-      </button>
+      <Button type="submit" variant="primary" className="w-full min-h-11 sm:w-auto sm:min-w-[10rem]">
+        Search jobs
+      </Button>
     </form>
   );
 };

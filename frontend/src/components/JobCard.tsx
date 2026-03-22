@@ -12,6 +12,7 @@ import {
   type MatchAnalysisWithSource,
   type MatchLoadingPhase,
 } from "../services/matchService";
+import { Button } from "./ui/Button";
 
 export interface JobCardProps {
   job: Job;
@@ -25,14 +26,67 @@ function seniorityDataAttribute(label: string): string {
   return label;
 }
 
-function scoreBadgeClasses(score: number): string {
-  if (score >= 80) {
-    return "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200";
-  }
-  if (score >= 50) {
-    return "bg-amber-100 text-amber-900 ring-1 ring-amber-200";
-  }
-  return "bg-rose-100 text-rose-800 ring-1 ring-rose-200";
+function PinIcon({ className }: { className?: string }): JSX.Element {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className }: { className?: string }): JSX.Element {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5"
+      />
+    </svg>
+  );
+}
+
+function MatchScoreBadge({ score }: { score: number }): JSX.Element {
+  const tier =
+    score >= 80
+      ? "border-emerald-200/90 bg-emerald-50 text-emerald-900"
+      : score >= 50
+        ? "border-amber-200/90 bg-amber-50 text-amber-950"
+        : "border-slate-200 bg-slate-100 text-slate-800";
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-lg border px-3 py-1.5 text-sm font-semibold tabular-nums shadow-sm ${tier}`}
+      aria-label={`Match score ${score} percent`}
+    >
+      {score}%
+      <span className="ml-1 text-xs font-medium opacity-75">match</span>
+    </span>
+  );
 }
 
 function loadingPhaseLabel(phase: MatchLoadingPhase): string {
@@ -88,6 +142,15 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
           jobDescription,
           resumeId,
           supabaseJobId: job.supabase_job_id ?? null,
+          jobUrl: job.url ?? null,
+          jobSnapshot: {
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            source: job.source,
+            description: job.description,
+            url: job.url,
+          },
         },
         (phase) => {
           setMatchPhase(phase);
@@ -109,6 +172,12 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
     trimmedResume,
     resumeId,
     job.supabase_job_id,
+    job.url,
+    job.title,
+    job.company,
+    job.location,
+    job.source,
+    job.description,
   ]);
 
   const openTips = useCallback((): void => {
@@ -155,135 +224,137 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
       : "Date unknown";
 
     const analyzed = matchResult !== null;
-    // Cache hit needs no Gemini key; first-time analysis needs VITE_GEMINI_API_KEY.
     const analyzeDisabled = analysisLoading || analyzed || !hasResume;
 
     return (
-      <article className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:shadow-md">
+      <article className="group relative overflow-hidden rounded-xl border border-slate-200/90 bg-white p-5 shadow-card transition-all duration-200 hover:border-slate-300 hover:shadow-card-hover sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-slate-900">
-              <a
-                href={jobUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-600 hover:text-indigo-800 hover:underline"
-              >
-                {jobTitle}
-              </a>
-            </h3>
-            <p className="mt-1 font-medium text-slate-700">{job.company ?? ""}</p>
-            <p className="mt-1 text-sm text-slate-500">
-              📍 {job.location ?? "Location not specified"}
-            </p>
-            <p className="text-sm text-slate-500">📅 {dateDisplay}</p>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold leading-snug tracking-tight text-slate-900 sm:text-xl">
+                  <a
+                    href={jobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition hover:text-slate-700 hover:underline decoration-slate-300 underline-offset-2"
+                  >
+                    {jobTitle}
+                  </a>
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {job.company ?? "—"}
+                </p>
+              </div>
+              {matchResult ? <MatchScoreBadge score={matchResult.score} /> : null}
+            </div>
           </div>
 
-          <div
-            className={`flex min-h-[2.25rem] shrink-0 flex-col items-stretch justify-center gap-2 transition-opacity duration-200 sm:items-end ${
-              analyzed ? "opacity-100" : "opacity-90"
-            }`}
-          >
-            {!hasApiKey && (!resumeId || !job.supabase_job_id) ? (
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+            {!hasApiKey && hasResume ? (
               <span
-                className="inline-flex max-w-xs rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-200"
-                title="Set VITE_GEMINI_API_KEY for first-time analysis (cached matches work without it)"
+                className="max-w-[14rem] rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 ring-1 ring-amber-200"
+                title="Set VITE_GEMINI_API_KEY for first-time analysis (saved matches load without it)"
               >
                 Gemini key needed for new matches
               </span>
             ) : null}
             {!hasResume ? (
-              <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
                 Upload CV to analyze match
               </span>
             ) : null}
             {analysisError && !analyzed ? (
               <span
-                className="inline-flex max-w-[14rem] rounded-full bg-rose-50 px-3 py-1 text-xs text-rose-800 ring-1 ring-rose-200"
+                className="max-w-[14rem] rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] text-rose-800"
                 title={analysisError}
               >
-                {analysisError.length > 40
-                  ? `${analysisError.slice(0, 40)}…`
+                {analysisError.length > 48
+                  ? `${analysisError.slice(0, 48)}…`
                   : analysisError}
               </span>
             ) : null}
             {analysisLoading ? (
               <div
-                className="inline-flex max-w-[16rem] items-center gap-2 rounded-full bg-indigo-50 px-4 py-1.5 ring-1 ring-indigo-200"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
                 aria-busy="true"
                 aria-live="polite"
-                aria-label={loadingPhaseLabel(matchPhase)}
               >
-                <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-                <span className="text-xs font-semibold text-indigo-900">
+                <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+                <span className="text-xs font-medium text-slate-600">
                   {loadingPhaseLabel(matchPhase)}
                 </span>
               </div>
             ) : null}
-            {matchResult ? (
-              <span
-                className={`inline-flex items-center justify-center rounded-full px-4 py-1.5 text-sm font-bold tabular-nums transition-all duration-300 ease-out ${scoreBadgeClasses(matchResult.score)}`}
-                title="AI match score"
-              >
-                {matchResult.score}%
-              </span>
-            ) : null}
           </div>
         </div>
 
-        <div
-          className="seniority-badge mt-3 inline-flex"
-          data-seniority={seniorityDataAttribute(seniorityLabel)}
-          title={reason}
-        >
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
-            {seniorityDisplay}
-            {yearsDisplay ? (
-              <span className="ml-2 opacity-80">{yearsDisplay}</span>
-            ) : null}
-            {reason ? <span className="ml-1">ℹ️</span> : null}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-1.5">
+            <PinIcon className="h-4 w-4 shrink-0 text-slate-400" />
+            {job.location ?? "Location not specified"}
           </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
+            {dateDisplay}
+          </span>
+          <div
+            className="seniority-badge inline-flex"
+            data-seniority={seniorityDataAttribute(seniorityLabel)}
+            title={reason}
+          >
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+              {seniorityDisplay}
+              {yearsDisplay ? (
+                <span className="ml-1.5 opacity-90">{yearsDisplay}</span>
+              ) : null}
+              {reason ? (
+                <span className="ml-1 text-slate-400" title={reason}>
+                  ℹ️
+                </span>
+              ) : null}
+            </span>
+          </div>
         </div>
 
         {matchResult ? (
           <div
-            className="mt-4 overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/50 shadow-sm ring-1 ring-indigo-100/80"
+            className="mt-5 rounded-lg border border-slate-200 bg-slate-50/90 px-4 py-4"
             role="status"
             aria-label="Match analysis result"
           >
-            <div className="border-l-4 border-indigo-500 px-4 py-3 sm:px-5 sm:py-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-indigo-600">
-                  Match insight
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                Match insight
+              </span>
+              {matchResult.source === "cache" ? (
+                <span className="rounded-md bg-slate-200/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                  Saved
                 </span>
-                {matchResult.source === "cache" ? (
-                  <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 ring-1 ring-slate-200">
-                    Saved
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-indigo-600/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800 ring-1 ring-indigo-200">
-                    AI fresh
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 text-sm font-medium leading-relaxed text-slate-800">
-                {matchResult.reason}
-              </p>
+              ) : (
+                <span className="rounded-md bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  AI fresh
+                </span>
+              )}
             </div>
+            <p className="mt-3 text-sm leading-relaxed text-slate-700">
+              {matchResult.reason}
+            </p>
           </div>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
+        <div className="mt-5 flex flex-wrap gap-2 sm:gap-2.5">
+          <Button
             type="button"
+            variant="secondary"
             onClick={handleAnalyzeMatch}
             disabled={analyzeDisabled}
-            className="inline-flex min-h-[2.5rem] min-w-[8.5rem] items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-10 min-w-[8.5rem]"
           >
             {analysisLoading ? (
               <>
                 <span
-                  className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600"
+                  className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-200 border-t-slate-800"
                   aria-hidden
                 />
                 <span className="truncate">{loadingPhaseLabel(matchPhase)}</span>
@@ -291,28 +362,33 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
             ) : analyzed ? (
               <span>Analyzed ✓</span>
             ) : (
-              <span>Analyze Match</span>
+              <span>Analyze match</span>
             )}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={openTips}
             disabled={!matchResult}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-10 min-w-[8.5rem]"
           >
-            Adjust My CV
-          </button>
-          <button
+            Adjust my CV
+          </Button>
+          <Button
             type="button"
+            variant="primary"
             onClick={applyClick}
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="min-h-10 min-w-[5.5rem]"
           >
             Apply
-          </button>
+          </Button>
         </div>
 
-        <p className="mt-3 text-xs italic text-slate-400">
-          Source: {job.source ?? ""}
+        <p className="mt-4 text-xs text-slate-400">
+          Source:{" "}
+          <span className="cursor-default underline decoration-slate-400 underline-offset-2">
+            {job.source ?? "—"}
+          </span>
         </p>
 
         {tipsModalOpen && matchResult ? (
@@ -326,32 +402,40 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
               role="dialog"
               aria-modal="true"
               aria-labelledby="tips-modal-title"
-              className="relative z-10 w-full max-w-md scale-100 transform rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-transform duration-200 ease-out"
+              className="relative z-10 w-full max-w-md scale-100 transform rounded-xl border border-slate-200/90 bg-white p-6 shadow-2xl transition-transform duration-200 ease-out"
               onClick={(e) => e.stopPropagation()}
             >
+              <img
+                src="/findy-logo.png"
+                alt=""
+                width={320}
+                height={82}
+                className="mx-auto mb-5 h-auto w-full max-w-[min(100%,300px)] object-contain opacity-95 sm:max-w-[340px]"
+                decoding="async"
+                aria-hidden
+              />
               <h2
                 id="tips-modal-title"
-                className="text-lg font-semibold text-slate-900"
+                className="text-lg font-semibold tracking-tight text-slate-900"
               >
                 Improve your CV for this role
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {jobTitle} · {job.company ?? "Company"}
               </p>
-              <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-slate-700">
+              <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-slate-700">
                 {matchResult.tips.map((tip, i) => (
-                  <li key={i} className="leading-relaxed">
-                    {tip}
-                  </li>
+                  <li key={i}>{tip}</li>
                 ))}
               </ol>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={closeTips}
-                className="mt-6 w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="mt-6 w-full min-h-11"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -359,7 +443,7 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
     );
   } catch {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
+      <div className="rounded-xl border border-red-200 bg-red-50/90 p-6 text-sm text-red-800 shadow-card">
         Error showing this job.
       </div>
     );
