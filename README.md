@@ -1,10 +1,22 @@
-
-
 ![Findy](assets/findy-logo.png)
+# 🚀 AI-Powered Career Matcher
 
-Findy is a job discovery application that aggregates tech job postings from multiple company job boards and helps candidates quickly find relevant opportunities in Israel.
+**[Live Demo 🌐](YOUR_RAILWAY_URL_HERE)**
 
-The system collects jobs from common ATS platforms (Greenhouse, Lever, Workday, Comeet), stores them locally, and allows filtering by title and seniority. Users can optionally upload a resume to rank jobs based on relevance.
+Full-stack app that aggregates **Israel-focused tech roles** from multiple ATS sources, normalizes and caches them in **PostgreSQL**, and scores **CV ↔ job fit** with **Gemini**—with a **read-through cache** so repeat analyses avoid redundant LLM calls.
+
+## Screenshot
+
+Job board with **AI match insight**, score, and actions (**Analyze Match**, **Adjust My CV**, **Apply**):
+
+![Findy UI — job cards with AI match insight](assets/ui-screenshot.png)
+
+## Tech Stack
+
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS.
+- **Backend:** Python Flask, Gunicorn.
+- **Database:** PostgreSQL.
+- **AI:** Gemini 2.5 Flash API.
 
 ## Features
 
@@ -19,112 +31,108 @@ The system collects jobs from common ATS platforms (Greenhouse, Lever, Workday, 
   - Seniority detection
   - Israel-based opportunities
 
-- **Resume parsing**
-  - Upload a PDF resume
-  - Extract text from the document
-  - Rank jobs based on resume relevance
+ **AI-Driven Match Intelligence**
+  - **Semantic Ranking:** Beyond keyword matching—uses **Gemini 2.5 Flash** to understand context and experience alignment.
+  - **Actionable Insights:** Generates a "Fit Score" (0-100) and specific "Adjust My CV" tips for each position.
+  - **Read-Through Caching:** Engineered a logic that prioritizes PostgreSQL lookups over AI API calls to minimize latency and operational costs.
+  - **Structured Data:** LLM-powered extraction that converts unstructured job descriptions into a normalized JSON format.
 
-## Architecture
+## System Architecture
 
+```mermaid
+flowchart LR
+    User("👤 User")
+    DB[("🗄️ PostgreSQL")]
+    Web["🌐 Web Scraping"]
+    AI["🤖 Gemini"]
+    Logic{{"❓\n Cache"}}
+
+    User -->|Upload CV| DB
+    User -->|Search jobs| Web
+    Web -->|Upsert by URL| DB
+    User -->|Analyze match| Logic
+    Logic -->|Miss| AI
+    AI -->|Persist analysis| DB
+    Logic -->|Hit| DB
+    DB -.->|UI| User
+
+    style DB fill:#336791,color:#fff
+    style AI fill:#4285f4,color:#fff
+    style Web fill:#f96,color:#fff
 ```
-Findy
-│
-├── backend
-│   ├── app.py
-│   ├── config.py
-│   ├── database.py
-│   ├── jobs_store.py
-│   ├── job_scraper.py
-│   ├── job_matcher.py
-│   ├── resume_parser.py
-│   ├── seniority.py
-│   └── scrapers
-│
-├── frontend
-│   ├── index.html
-│   ├── app.js
-│   └── styles.css
-│
-├── data
-│   └── jobs.db
-│
-├── run.py
-├── requirements.txt
-└── README.md
-```
-
-The backend handles job scraping, filtering, and ranking logic, while the frontend provides the user interface for searching jobs and uploading resumes.
-
-## Tech Stack
-
-| Layer | Technologies |
-|-------|--------------|
-| **Backend** | Python, Flask, SQLite |
-| **Resume parsing** | pdfplumber |
-| **Frontend** | HTML, JavaScript, CSS |
-
-## Running the Project
-
-**Install dependencies:**
-
-```bash
-pip install -r requirements.txt
-```
-
-**Run the application:**
-
-```bash
-python run.py
-```
-
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Web interface |
-| `/api/health` | GET | Service health check |
-| `/api/resume/upload` | POST | Upload resume and extract text |
-| `/api/jobs/search` | GET / POST | Search jobs |
-| `/api/jobs/stats` | GET | Job statistics |
-| `/api/jobs/refresh` | GET / POST | Refresh job database |
-
 
 ## CI/CD
 
-### CI (`.github/workflows/ci.yml`)
+End-to-end flow is **Docker-first**: GitHub Actions validates every change; **GitHub Container Registry (GHCR)** stores **immutable, versioned images**; **Render** runs production using a **push-to-deploy** model with **rolling updates** for zero-downtime cutovers.
 
-- **Triggers:** Every push and every pull request (all branches).
-- **Steps:** Checkout → install dependencies → run pytest → optional Ruff lint → build Docker image for validation only.
-- **Does not:** Push images or deploy.
 
-Run tests locally:
+```mermaid
+graph LR
+    %% Events
+    Push[Push / PR to GitHub] --> CI
 
-```bash
-pip install -r requirements.txt pytest
-PYTHONPATH=. pytest
+    %% CI Stage
+    subgraph CI [Continuous Integration]
+        direction TB
+        Lint[Ruff: Backend Linting]
+        Test[Pytest: Unit Testing]
+        Type[TSC: Frontend Type-Check]
+        DockerCheck[Docker: Build Validation]
+        
+        Lint & Test & Type & DockerCheck --> CI_Success{All Pass?}
+    end
+
+    %% CD Stage
+    CI_Success -- "On Main / Tag" --> CD
+    
+    subgraph CD [Continuous Delivery]
+        direction TB
+        Build[Docker Buildx: Multi-stage Build]
+        PushGHCR[Push to GHCR: latest / sha-tag]
+        Deploy[Render: Rolling Update]
+        
+        Build --> PushGHCR --> Deploy
+    end
+
+    %% Styling
+    style Push fill:#f8f9fa,stroke:#333
+    style CI fill:#e7f3ff,stroke:#007bff,stroke-width:2px
+    style CD fill:#f0fff4,stroke:#28a745,stroke-width:2px
+    style Deploy fill:#3ecf8e,stroke:#333,color:#fff
+    style PushGHCR fill:#24292e,stroke:#333,color:#fff
+
 ```
 
-### CD (`.github/workflows/cd.yml`)
+### 🧪 CI — Continuous Integration (`.github/workflows/ci.yml`)
 
-- **Triggers:** Push to `main`, or push of a tag matching `v*` (e.g. `v1.0.0`).
-- **Concurrency:** One deployment at a time (no overlapping deploys).
+Triggered on **every push** and **pull request** across all branches to ensure stability:
 
-**On push to main:**
 
-- Build and push: `ghcr.io/<owner>/findy:main`, `ghcr.io/<owner>/findy:latest`.
-- Deploy: `kubectl apply -f k8s/` → `kubectl set image deployment/findy findy=ghcr.io/<owner>/findy:main` → `kubectl rollout status deployment/findy`.
+| Stage | Path / Context | Tool & Command |
+| :--- | :--- | :--- |
+| **Lint** | `backend/` | **Ruff** (Static analysis & formatting) |
+| **Test** | `tests/` | **Pytest** (Unit & Integration tests) |
+| **Type-check** | `frontend/src/` | **TypeScript** (`tsc --noEmit`) |
+| **Frontend build** | `frontend/` | **Vite** production build verification |
+| **Docker** | `./Dockerfile` | **Buildx** multi-stage validation |
 
-**On tag push (e.g. `v1.0.0`):**
+### 🚀 CD — Continuous Delivery (`.github/workflows/cd.yml`)
 
-- Build and push: `ghcr.io/<owner>/findy:v1.0.0`, `ghcr.io/<owner>/findy:latest`.
-- Deploy: same steps, with image `ghcr.io/<owner>/findy:v1.0.0`.
+Triggered only on **pushes to `main`** or **Git tags** (`v*`):
 
-### Creating a release
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+| Step | Action | Description |
+| :--- | :--- | :--- |
+| **Build & Push** | `Dockerfile` | Multi-stage production build pushed to **GHCR** |
+| **Versioning** | `ghcr.io/` | Tags: **`latest`**, **`sha-<commit>`**, and **SemVer tags** |
+| **Deploy** | **Render Hook** | Triggers an automated **Zero-Downtime Rolling Update** |
 
-CD builds the image, pushes `v1.0.0` and `latest` to GHCR, and deploys to Kubernetes using that image.
+
+
+
+
+
+
+
+---
+
