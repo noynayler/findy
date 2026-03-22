@@ -11,7 +11,7 @@ services:
   - type: cron
     name: findy-daily-scrape
     runtime: python
-    schedule: "0 6 * * *"
+    schedule: "0 7 * * *"
     buildCommand: pip install -r requirements.txt
     startCommand: PYTHONPATH=. python run_daily_scrape.py
     envVars:

@@ -46,7 +46,7 @@ Job board with **AI match insight**, score, and actions (**Analyze Match**, **Ad
 flowchart LR
     User("👤 User")
     DB[("🗄️ PostgreSQL")]
-    Cron["⏰ Daily cron\nPython or HTTP"]
+    Cron["⏰ Daily cron"]
     Scrape["🌐 ATS scrape"]
     AI["🤖 Gemini"]
     Logic{"❓\n Cache"}
@@ -65,28 +65,6 @@ flowchart LR
     style AI fill:#4285f4,color:#fff
     style Scrape fill:#f96,color:#fff
 ```
-
-### Database and job data
-
-- Apply `postgresql/schema.sql` (or incremental files under `postgresql/migrations/`) in the Supabase SQL editor.
-- **`public.jobs`**: populated by scraping + upsert (see **Daily scrape** below). **Search** reads from here via Flask; if the table is empty, run a scrape first.
-
-### Daily scrape (cron)
-
-**Recommended (Render):** Use the **Python cron** in [`render.yaml`](render.yaml) (`findy-daily-scrape`). It runs [`run_daily_scrape.py`](run_daily_scrape.py) on a schedule — same scrape + upsert as `POST /api/jobs/refresh`, without HTTP. Set **`SUPABASE_URL`** and **`SUPABASE_ANON_KEY`** on the cron service (mirror the web service; optional: **`VITE_SUPABASE_URL`** + **`VITE_SUPABASE_ANON_KEY`**). Persistence uses **Supabase PostgREST**, not `DATABASE_URL`.
-
-**Local / CI check:** `PYTHONPATH=. python run_daily_scrape.py`
-
-**Optional — HTTP refresh** (manual or external scheduler):
-
-```bash
-# Example: 06:00 UTC daily; requires JOBS_REFRESH_SECRET when set on the server
-0 6 * * * curl -fsS -X POST "https://your-host/api/jobs/refresh" -H "Authorization: Bearer $JOBS_REFRESH_SECRET"
-```
-
-If **`JOBS_REFRESH_SECRET`** is **unset**, refresh is open (fine for local dev). If **set**, use **`Authorization: Bearer <secret>`** or **`?token=<secret>`**.
-
-**Local:** `curl -X POST http://localhost:5000/api/jobs/refresh`
 
 ## CI/CD
 
