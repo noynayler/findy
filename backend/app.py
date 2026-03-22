@@ -2,12 +2,13 @@
 Flask app: job search, resume upload, refresh. Serves frontend from frontend/.
 """
 
+import os
 import sys
 import traceback
 from pathlib import Path
 from datetime import datetime
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory, abort
 
 from backend import config
 from backend import database
@@ -28,19 +29,36 @@ except ImportError:
     pass
 
 FRONTEND_DIR = ROOT / "frontend"
-app = Flask(__name__, template_folder=str(FRONTEND_DIR), static_folder=str(FRONTEND_DIR), static_url_path="/static")
+FRONTEND_DIST = FRONTEND_DIR / "dist"
+
+# Prefer Vite production build (npm run build → frontend/dist); fallback to legacy static template.
+if (FRONTEND_DIST / "index.html").is_file():
+    app = Flask(__name__, static_folder=str(FRONTEND_DIST), static_url_path="")
+else:
+    app = Flask(
+        __name__,
+        template_folder=str(FRONTEND_DIR),
+        static_folder=str(FRONTEND_DIR),
+        static_url_path="/static",
+    )
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
 
 
 def _startup_summary():
-    database.init_db()
-    n = jobs_store.count_jobs()
     sources = ["Greenhouse", "Lever", "Workday"]
     if config.COMEET_MAX_COMPANIES_WEB or config.COMEET_MAX_BOARDS_FULL_SCAN:
         sources.append("Comeet")
     print("---")
-    print("DB initialized (data/jobs.db)")
-    print(f"Jobs stored: {n}")
+    try:
+        database.init_db()
+        n = jobs_store.count_jobs()
+        print("DB: Supabase (HTTP / PostgREST) — public.jobs")
+        print(f"Jobs stored: {n}")
+    except database.DatabaseConfigurationError as err:
+        print("DB: Supabase not configured (scrapes will fail until env is set)")
+        print(f"  {err}")
+    except Exception as err:
+        print(f"DB: Supabase check failed: {err}")
     print(f"Sources: {', '.join(sources)}")
     print("---")
 
@@ -58,12 +76,24 @@ def cors(response):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    if (FRONTEND_DIST / "index.html").is_file():
+        return send_from_directory(str(FRONTEND_DIST), "index.html")
+    return render_template("fallback.html")
 
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok", "message": "Server is running"})
+
+
+@app.errorhandler(404)
+def spa_or_api_not_found(_e):
+    """API routes return JSON 404; all other paths serve the Vite SPA (React Router)."""
+    if request.path.startswith("/api"):
+        return jsonify({"error": "Not found", "path": request.path}), 404
+    if (FRONTEND_DIST / "index.html").is_file():
+        return send_from_directory(str(FRONTEND_DIST), "index.html")
+    return abort(404)
 
 
 @app.route("/api/resume/upload", methods=["POST"])
@@ -74,14 +104,31 @@ def upload_resume():
         file = request.files["resume"]
         if not file.filename:
             return jsonify({"success": False, "error": "No file selected"}), 400
-        if not file.filename.lower().endswith(".pdf"):
-            return jsonify({"success": False, "error": "Only PDF files are supported"}), 400
-        pdf_bytes = file.read()
-        if len(pdf_bytes) == 0:
+        name_lower = (file.filename or "").lower()
+        allowed = name_lower.endswith(".pdf") or name_lower.endswith(".docx") or name_lower.endswith(".doc")
+        if not allowed:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Only PDF, .doc, and .docx files are supported",
+                    }
+                ),
+                400,
+            )
+        raw_bytes = file.read()
+        if len(raw_bytes) == 0:
             return jsonify({"success": False, "error": "Empty file"}), 400
-        resume_text, _ = resume_parser.extract_text_from_pdf(pdf_bytes, enable_ocr=False)
+        resume_text, _ = resume_parser.extract_text_from_resume(file.filename, raw_bytes)
         if not resume_text:
-            return jsonify({"success": False, "error": "Could not extract text from PDF"}), 400
+            if name_lower.endswith(".doc"):
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": "Could not read .doc file. Install pandoc, or save as .docx or PDF.",
+                    }
+                ), 400
+            return jsonify({"success": False, "error": "Could not extract text from this file"}), 400
         return jsonify({"success": True, "resume_text": resume_text, "text_length": len(resume_text)})
     except Exception as e:
         print(f"Error in upload_resume: {e}")
@@ -114,16 +161,13 @@ def search_jobs():
         if resume_text is not None:
             resume_text = (resume_text or "").strip() or None
 
-        print(f"Search: scraping (last {days} days)...")
-        try:
-            scraped = scrape_all_jobs(days=days, max_comeet_companies=config.COMEET_MAX_BOARDS_FULL_SCAN, skip_comeet=False)
-            jobs_store.upsert_jobs(scraped)
-            print(f"Search: scraped {len(scraped)} jobs")
-        except Exception as err:
-            print(f"Search: scrape failed ({err}), using existing DB")
-            traceback.print_exc()
-
         all_jobs = jobs_store.query_jobs(days=days, israel_only=True)
+        print(f"Search: loaded {len(all_jobs)} jobs from DB (days={days})")
+        if not all_jobs:
+            print(
+                "Search: no rows in public.jobs — run POST /api/jobs/refresh once "
+                "or schedule a daily cron to populate listings.",
+            )
         basic_filtered = filter_jobs(jobs=all_jobs, days=days, seniority=None, title_keyword=None, debug=True)
         total_count = len(basic_filtered)
         filtered_jobs = filter_jobs(jobs=all_jobs, days=days, seniority=seniority, title_keyword=title_keyword, debug=True) if (title_keyword or seniority) else basic_filtered
@@ -172,9 +216,27 @@ def get_stats():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _refresh_authorized() -> bool:
+    """If JOBS_REFRESH_SECRET is set, require Bearer token or ?token= query param."""
+    secret = (os.environ.get("JOBS_REFRESH_SECRET") or "").strip()
+    if not secret:
+        return True
+    auth = (request.headers.get("Authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        token = auth[7:].strip()
+        if token == secret:
+            return True
+    q_token = (request.args.get("token") or "").strip()
+    if q_token == secret:
+        return True
+    return False
+
+
 @app.route("/refresh", methods=["GET", "POST"])
 @app.route("/api/jobs/refresh", methods=["GET", "POST"])
 def refresh_jobs():
+    if not _refresh_authorized():
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
     try:
         scraped = scrape_all_jobs(days=config.DEFAULT_DAYS_BACK, max_comeet_companies=config.COMEET_MAX_BOARDS_FULL_SCAN, skip_comeet=False)
         jobs_store.upsert_jobs(scraped)
@@ -187,7 +249,7 @@ def refresh_jobs():
 
 
 if __name__ == "__main__":
-    import os
     debug = os.environ.get("FLASK_DEBUG", "true").lower() in ("1", "true", "yes")
-    print("Server: http://localhost:5000")
-    app.run(debug=debug, host="0.0.0.0", port=5000, threaded=True)
+    port = int(os.environ.get("PORT", "5000"))
+    print(f"Server: http://0.0.0.0:{port} (debug={debug})")
+    app.run(debug=debug, host="0.0.0.0", port=port, threaded=True)

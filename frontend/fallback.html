@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Findy — Build required</title>
+</head>
+<body style="font-family: system-ui, sans-serif; padding: 2rem; max-width: 40rem">
+  <h1>Findy</h1>
+  <p>The production UI has not been built yet (<code>frontend/dist</code> is missing).</p>
+  <p><strong>Option A — Flask + built assets</strong></p>
+  <pre style="background: #f5f5f5; padding: 1rem">cd frontend
+npm install
+npm run build
+cd ..
+python run.py</pre>
+  <p><strong>Option B — Vite dev server</strong> (proxies <code>/api</code> to Flask on port 5000)</p>
+  <pre style="background: #f5f5f5; padding: 1rem">python run.py
+# other terminal:
+cd frontend
+npm install
+npm run dev</pre>
+</body>
+</html>
