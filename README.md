@@ -6,7 +6,7 @@
 
 **[Live Demo 🌐](YOUR_RAILWAY_URL_HERE)**
 
-Full-stack app that aggregates **Israel-focused tech roles** from multiple ATS sources, scores **CV ↔ job fit** with **Gemini**, and persists **analyzed matches** in **PostgreSQL** (e.g. `job_match_analyses` by CV hash + job URL). **Job search** reads **`public.jobs` in Supabase** (no live scrape on each search). Listings are filled by **`POST /api/jobs/refresh`** — run it manually once, then schedule a **daily cron** (see below) to rescrape and upsert.
+Full-stack app that aggregates **Israel-focused tech roles** from multiple ATS sources, scores **CV ↔ job fit** with **Gemini**, and persists **analyzed matches** in **PostgreSQL** (e.g. `job_match_analyses` by CV hash + job URL). **Job search** reads **`public.jobs` in Supabase** (no live scrape on each search). Listings are filled by scraping + upsert (**`run_daily_scrape.py`** / Render cron in [`render.yaml`](render.yaml), or **`POST /api/jobs/refresh`** for manual HTTP refresh) — schedule a **daily job** (see below) so `public.jobs` stays current.
 
 ## Screenshot
 
@@ -46,7 +46,7 @@ Job board with **AI match insight**, score, and actions (**Analyze Match**, **Ad
 flowchart LR
     User("👤 User")
     DB[("🗄️ PostgreSQL")]
-    Cron["⏰ Daily cron\nPOST refresh"]
+    Cron["⏰ Daily cron\nPython or HTTP"]
     Scrape["🌐 ATS scrape"]
     AI["🤖 Gemini"]
     Logic{"❓\n Cache"}
@@ -69,20 +69,22 @@ flowchart LR
 ### Database and job data
 
 - Apply `postgresql/schema.sql` (or incremental files under `postgresql/migrations/`) in the Supabase SQL editor.
-- **`public.jobs`**: populated by the backend **`POST /api/jobs/refresh`** (scrape + upsert). **Search** only reads from here via Flask; if the table is empty, search returns no listings until refresh succeeds.
-- **`job_match_analyses`**: Gemini results keyed by **`cv_content_hash` + `job_url`**, optional `resume_id`, **`job_snapshot`**. See migration `004_job_match_analyses.sql`.
-- Legacy **`match_history`** (resume UUID + `jobs.id`) is still used when **`supabase_job_id`** is present on a card.
+- **`public.jobs`**: populated by scraping + upsert (see **Daily scrape** below). **Search** reads from here via Flask; if the table is empty, run a scrape first.
 
 ### Daily scrape (cron)
 
-Schedule an HTTP call to refresh listings (adjust host and secret):
+**Recommended (Render):** Use the **Python cron** in [`render.yaml`](render.yaml) (`findy-daily-scrape`). It runs [`run_daily_scrape.py`](run_daily_scrape.py) on a schedule — same scrape + upsert as `POST /api/jobs/refresh`, without HTTP. Set **`SUPABASE_URL`** and **`SUPABASE_ANON_KEY`** on the cron service (mirror the web service; optional: **`VITE_SUPABASE_URL`** + **`VITE_SUPABASE_ANON_KEY`**). Persistence uses **Supabase PostgREST**, not `DATABASE_URL`.
+
+**Local / CI check:** `PYTHONPATH=. python run_daily_scrape.py`
+
+**Optional — HTTP refresh** (manual or external scheduler):
 
 ```bash
-# Example: 06:00 UTC daily; requires JOBS_REFRESH_SECRET in .env when set on the server
+# Example: 06:00 UTC daily; requires JOBS_REFRESH_SECRET when set on the server
 0 6 * * * curl -fsS -X POST "https://your-host/api/jobs/refresh" -H "Authorization: Bearer $JOBS_REFRESH_SECRET"
 ```
 
-If **`JOBS_REFRESH_SECRET`** is **unset**, refresh is open (fine for local dev). If **set**, requests must send the same value as **`Authorization: Bearer <secret>`** or **`?token=<secret>`**.
+If **`JOBS_REFRESH_SECRET`** is **unset**, refresh is open (fine for local dev). If **set**, use **`Authorization: Bearer <secret>`** or **`?token=<secret>`**.
 
 **Local:** `curl -X POST http://localhost:5000/api/jobs/refresh`
 
@@ -148,7 +150,7 @@ Triggered only on **pushes to `main`** or **Git tags** (`v*`):
 
 | Step | Action | Description |
 | :--- | :--- | :--- |
-| **Build & Push** | `Dockerfile` | Multi-stage production build pushed to **GHCR** |
+| **Build & Push** | `Dockerfile` | Multi-stage production build pushed to **GHCR**; passes **`VITE_*`** from repo **Secrets** as Docker build-args (Gemini + Supabase for the browser bundle) |
 | **Versioning** | `ghcr.io/` | Tags: **`latest`**, **`sha-<commit>`**, and **SemVer tags** |
 | **Deploy** | **Render Hook** | Triggers an automated **Zero-Downtime Rolling Update** |
 

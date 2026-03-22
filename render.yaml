@@ -1,0 +1,21 @@
+# Render Blueprint — daily scrape into public.jobs (Python cron, no HTTP).
+# https://render.com/docs/cronjobs
+#
+# This service uses Supabase PostgREST (same as Flask), NOT a raw DATABASE_URL.
+# Set the same credentials as your web service:
+#   SUPABASE_URL + SUPABASE_ANON_KEY
+#   (or VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
+#
+# Merge this `services` entry with your existing Blueprint if you already define a web service.
+services:
+  - type: cron
+    name: findy-daily-scrape
+    runtime: python
+    schedule: "0 6 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: PYTHONPATH=. python run_daily_scrape.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false

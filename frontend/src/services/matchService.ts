@@ -1,6 +1,7 @@
 /**
  * Orchestrates DB cache + Gemini for on-demand Analyze Match.
  */
+import { AI_MATCH_KEY_MISSING_ON_ANALYZE } from "../constants/userMessages";
 import type { AiJobMatchAnalysis, Job } from "../types";
 import { isSupabaseConfigured } from "../utils/supabaseClient";
 import { analyzeMatch } from "./aiService";
@@ -103,9 +104,7 @@ export async function loadOrAnalyzeMatch(
 
   if (!hasGeminiKey()) {
     finish();
-    throw new Error(
-      "No saved match for this job yet, and VITE_GEMINI_API_KEY is missing. Add a key or run Analyze after a prior result was saved.",
-    );
+    throw new Error(AI_MATCH_KEY_MISSING_ON_ANALYZE);
   }
 
   onPhase?.("calling-ai");

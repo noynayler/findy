@@ -1,7 +1,11 @@
 /**
  * Google Gemini client-side integration.
- * VITE_GEMINI_API_KEY is public in the bundle — use a backend proxy in production.
+ * API key is inlined at Vite build time (Docker build-args / CI secrets in production).
  */
+import {
+  AI_ANALYSIS_FAILED_GENERIC,
+  AI_ANALYSIS_NOT_CONFIGURED,
+} from "../constants/userMessages";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AiJobMatchAnalysis, Job } from "../types";
 
@@ -104,9 +108,7 @@ export async function analyzeCvVsJob(
 ): Promise<AiJobMatchAnalysis> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error(
-      "Missing VITE_GEMINI_API_KEY. Add it to frontend/.env (see .env.example).",
-    );
+    throw new Error(AI_ANALYSIS_NOT_CONFIGURED);
   }
 
   const trimmedResume = resumeText.trim().slice(0, MAX_RESUME_CHARS);
@@ -128,7 +130,7 @@ ${trimmedJob}`;
     const response = result.response;
     const text = response.text();
     if (!text) {
-      throw new Error("Empty response from Gemini");
+      throw new Error(AI_ANALYSIS_FAILED_GENERIC);
     }
     return parseAnalysisJson(text);
   } catch (err) {
@@ -136,9 +138,9 @@ ${trimmedJob}`;
       throw err;
     }
     if (err instanceof Error) {
-      throw new Error(`Gemini request failed: ${err.message}`);
+      throw new Error(AI_ANALYSIS_FAILED_GENERIC);
     }
-    throw new Error("Gemini request failed");
+    throw new Error(AI_ANALYSIS_FAILED_GENERIC);
   }
 }
 

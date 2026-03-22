@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { AI_MATCH_NOT_CONFIGURED } from "../constants/userMessages";
 import type { Job } from "../types";
 import { buildJobDescription } from "../services/aiService";
 import {
@@ -254,9 +255,9 @@ export const JobCard: FC<JobCardProps> = ({ job, resumeText, resumeId }) => {
             {!hasApiKey && hasResume ? (
               <span
                 className="max-w-[14rem] rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 ring-1 ring-amber-200"
-                title="Set VITE_GEMINI_API_KEY for first-time analysis (saved matches load without it)"
+                title={AI_MATCH_NOT_CONFIGURED}
               >
-                Gemini key needed for new matches
+                AI not configured for new matches
               </span>
             ) : null}
             {!hasResume ? (

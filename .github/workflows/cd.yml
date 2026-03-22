@@ -62,6 +62,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}
+            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Trigger Render deploy (optional)
         if: github.ref == 'refs/heads/main'
