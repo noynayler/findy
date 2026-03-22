@@ -1,4 +1,10 @@
-import { type ChangeEvent, useCallback, useState, type FC } from "react";
+import {
+  type ChangeEvent,
+  useCallback,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 import type { Candidate, Job, JobsSearchRequestBody, SeniorityValue } from "../types";
 import { parseJobsSearchResponse, parseResumeUploadResponse } from "../utils/apiGuards";
 import { JobList } from "../components/JobList";
@@ -20,12 +26,35 @@ const resumeStatusClass = (kind: "neutral" | "success" | "error"): string => {
   return "text-slate-600";
 };
 
+/** Parse body as JSON; avoids throw on HTML error pages. */
+async function responseBodyAsJson(response: Response): Promise<unknown> {
+  const text = await response.text();
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error(
+      response.ok ? "Empty response from server" : `Server error (HTTP ${response.status})`,
+    );
+  }
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    throw new Error(
+      response.ok
+        ? "Server returned invalid JSON"
+        : `Server error (HTTP ${response.status})`,
+    );
+  }
+}
+
 export const HomePage: FC = () => {
   const [candidate, setCandidate] = useState<Candidate>(initialCandidate);
   const [resumeStatusText, setResumeStatusText] = useState<string>("");
   const [resumeStatusKind, setResumeStatusKind] = useState<"neutral" | "success" | "error">(
     "neutral",
   );
+  /** Incremented on each upload start; stale async completions must not overwrite UI. */
+  const resumeUploadGenRef = useRef(0);
+  const resumeUploadAbortRef = useRef<AbortController | null>(null);
 
   const [title, setTitle] = useState<string>("");
   const [seniority, setSeniority] = useState<SeniorityValue>("");
@@ -54,31 +83,75 @@ export const HomePage: FC = () => {
       setResumeStatusKind("error");
       return;
     }
+
+    resumeUploadAbortRef.current?.abort();
+    const ac = new AbortController();
+    resumeUploadAbortRef.current = ac;
+    const gen = ++resumeUploadGenRef.current;
+
+    const isStale = (): boolean => gen !== resumeUploadGenRef.current;
+
     const formData = new FormData();
     formData.append("resume", file);
-    setResumeStatusText("Uploading...");
+    setResumeStatusText("Uploading…");
     setResumeStatusKind("neutral");
+
     try {
-      const response = await fetch("/api/resume/upload", { method: "POST", body: formData });
-      const raw: unknown = await response.json();
-      const data = parseResumeUploadResponse(raw);
-      if (data.success) {
-        const resumeId = await insertResumeRecord(data.resume_text, file.name);
-        setCandidate({
-          resumeText: data.resume_text,
-          textLength: data.text_length,
-          resumeId,
-        });
-        setResumeStatusText(
-          `✓ Resume uploaded (${data.text_length} chars)${resumeId ? "" : " (not saved to cloud)"}`,
-        );
-        setResumeStatusKind("success");
-      } else {
-        setCandidate(initialCandidate);
-        setResumeStatusText(`Error: ${data.error}`);
-        setResumeStatusKind("error");
+      const response = await fetch("/api/resume/upload", {
+        method: "POST",
+        body: formData,
+        signal: ac.signal,
+      });
+
+      if (isStale()) {
+        return;
       }
+
+      const raw: unknown = await responseBodyAsJson(response);
+
+      if (isStale()) {
+        return;
+      }
+
+      const data = parseResumeUploadResponse(raw);
+
+      if (!response.ok || !data.success) {
+        setCandidate(initialCandidate);
+        const msg =
+          !data.success && "error" in data
+            ? data.error
+            : `Request failed (HTTP ${response.status})`;
+        setResumeStatusText(`Error: ${msg}`);
+        setResumeStatusKind("error");
+        return;
+      }
+
+      setResumeStatusText("Saving to cloud…");
+      const resumeId = await insertResumeRecord(data.resume_text, file.name);
+
+      if (isStale()) {
+        return;
+      }
+
+      setCandidate({
+        resumeText: data.resume_text,
+        textLength: data.text_length,
+        resumeId,
+      });
+      setResumeStatusText(
+        `✓ Resume uploaded (${data.text_length} chars)${resumeId ? "" : " (not saved to cloud)"}`,
+      );
+      setResumeStatusKind("success");
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      if (err instanceof Error && err.name === "AbortError") {
+        return;
+      }
+      if (isStale()) {
+        return;
+      }
       const message = err instanceof Error ? err.message : "Upload failed";
       setCandidate(initialCandidate);
       setResumeStatusText(`Error: ${message}`);

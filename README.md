@@ -1,4 +1,7 @@
-![Findy](assets/findy-logo.png)
+<p align="center">
+  <img src="assets/findy-logo.png" alt="Findy" width="160" />
+</p>
+
 # 🚀 AI-Powered Career Matcher
 
 **[Live Demo 🌐](YOUR_RAILWAY_URL_HERE)**
@@ -46,7 +49,7 @@ flowchart LR
     Cron["⏰ Daily cron\nPOST refresh"]
     Scrape["🌐 ATS scrape"]
     AI["🤖 Gemini"]
-    Logic{{"❓\n Cache"}}
+    Logic{"❓\n Cache"}
 
     User -->|Upload CV| DB
     Cron --> Scrape

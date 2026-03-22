@@ -68,7 +68,8 @@ export const ResumeSection: FC<ResumeSectionProps> = ({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const isUploading = statusText.startsWith("Uploading");
+  const isUploading =
+    statusText.startsWith("Uploading") || statusText.startsWith("Saving to cloud");
 
   const onDropAccepted = useCallback(
     async (acceptedFiles: File[], _event: DropEvent): Promise<void> => {
